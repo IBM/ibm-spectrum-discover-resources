@@ -1,5 +1,7 @@
 # ibm-spectrum-discover-resources
-This repository is destined to host resources (mainly YAML definition files and BASH scripts) needed by the customers in the process for Spectrum Discover deployment in OpenShift.
+This repository is destined to host the resources (mainly YAML and BASH files) needed by the customers in the process of Spectrum Discover deployment in OpenShift. The content includes CRDs to deploy the Spectrum Discover and Kafka pods, and also useful script routines to perform DB2 post-installation steps, first failure data capture configurations, and aliases setup for oc commands.
+
+For information about the usage of this resources, please refer to the [IBM Spectrum Discover documentation](https://www.ibm.com/docs/en/spectrum-discover/2.0.5?topic=configuring-deploying-spectrum-discover-as-set-containers).
 
 ## Support
 

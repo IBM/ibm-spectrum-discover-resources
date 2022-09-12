@@ -1,0 +1,1087 @@
+---
+# CLUSTER ROLE
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: spectrum-discover-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - services/finalizers
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  - configmaps
+  - secrets
+  - pods/exec
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  - replicasets
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - servicemonitors
+  verbs:
+  - get
+  - create
+- apiGroups:
+  - apps
+  resourceNames:
+  - spectrum-discover-operator
+  resources:
+  - deployments/finalizers
+  verbs:
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - replicasets
+  - deployments
+  verbs:
+  - get
+  - watch
+- apiGroups:
+  - spectrum-discover.ibm.com
+  resources:
+  - '*'
+  - 'spectrumdiscovers'
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kafka.strimzi.io
+  resources:
+  - kafkas
+  - kafkatopics
+  - kafkausers
+  verbs:
+  - list
+  - get
+  - create
+  - delete
+  - patch
+  - watch
+- apiGroups:
+  - policy
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - ibm-privileged-psp
+  verbs:
+  - use
+  - watch
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  - routes/custom-host
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - oauth.openshift.io
+  resources:
+  - oauthclients
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+# CLUSTER ROLE BINDING
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: spectrum-discover-operator
+subjects:
+- kind: ServiceAccount
+  name: spectrum-discover-operator
+  namespace: spectrum-discover
+roleRef:
+  kind: ClusterRole
+  name: spectrum-discover-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+# SERVICE ACCOUNT
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spectrum-discover-operator
+  namespace: spectrum-discover
+---
+# OPERATOR
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spectrum-discover-operator
+  namespace: spectrum-discover
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: spectrum-discover-operator
+  template:
+    metadata:
+      annotations:
+        productName: IBM Spectrum Discover Operator
+        productVersion: v2.0.5
+        productMetric: PROCESSOR_VALUE_UNIT
+      labels:
+        name: spectrum-discover-operator
+        namespace: spectrum-discover
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+      serviceAccountName: spectrum-discover-operator
+      containers:
+        - name: ansible
+          command:
+          - /usr/local/bin/ao-logs
+          - /tmp/ansible-operator/runner
+          - stdout
+          # Replace this with the built image name
+          image: "localhost/spectrum-discover/ibm-spectrum-discover-operator:@@BUILD@@"
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+              ephemeral-storage: "5Gi"
+            requests:
+              cpu: "0.5"
+              memory: 256Mi
+              ephemeral-storage: "1Gi"
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - find /proc -mindepth 2 -maxdepth 2 -name exe -exec ls -lh {} \; | grep ansible-operator
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+          - mountPath: /tmp/ansible-operator/runner
+            name: runner
+            readOnly: true
+        - name: operator
+          # Replace this with the built image name
+          image: "localhost/spectrum-discover/ibm-spectrum-discover-operator:@@BUILD@@"
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+              ephemeral-storage: "5Gi"
+            requests:
+              cpu: "0.5"
+              memory: 256Mi
+              ephemeral-storage: "1Gi"
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - find /proc -mindepth 2 -maxdepth 2 -name exe -exec ls -lh {} \; | grep ansible-operator
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+          - mountPath: /tmp/ansible-operator/runner
+            name: runner
+          env:
+            - name: WATCH_NAMESPACE
+              value: ""
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "spectrum-discover-operator"
+            - name: ANSIBLE_GATHERING
+              value: explicit
+        
+      volumes:
+        - name: runner
+          emptyDir: {}
+---
+# KAFKA CUSTOM RESOURCE DEFINITION
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: spectrumdiscoverkafkas.spectrum-discover.ibm.com
+  namespace: spectrum-discover
+spec:
+  group: spectrum-discover.ibm.com
+  names:
+    kind: SpectrumDiscoverKafka
+    listKind: SpectrumDiscoverKafkaList
+    plural: spectrumdiscoverkafkas
+    singular: spectrumdiscoverkafka
+  scope: Namespaced
+  subresources:
+    status: {}
+  versions:
+  - additionalPrinterColumns:
+      - name: Ready
+        type: string
+        description: SpectrumDiscoverKafka readiness status
+        jsonPath: '.status.conditions[?(@.reason=="Successful")].status'
+      - name: Summary
+        type: string
+        description: SpectrSpectrumDiscoverKafkaumDiscover readiness summary
+        jsonPath: '.status.conditions[?(@.type=="Running")].message'
+      - name: Error
+        type: string
+        description: SpectrumDiscoverKafka reconcile error
+        jsonPath: '.status.conditions[?(@.type=="Failure")].message'
+      - name: Age
+        type: date
+        description: Age of the resource
+        jsonPath: .metadata.creationTimestamp
+    name: v1alpha1
+    schema:
+        openAPIV3Schema:
+          description: >-
+            Creates IBM Spectrum Discover cluster that provides container-native
+            data and storage services for your container workloads.
+            Documentation for deploying IBM Spectrum Discover:
+            https://www.ibm.com/docs/en/spectrum-discover/2.0.5
+          type: object
+          properties:
+            apiVersion:
+              description: >-
+                APIVersion defines the versioned schema of this representation
+                of an object. Servers should convert recognized schemas to the
+                latest internal value, and may reject unrecognized values. More
+                info:
+                https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: >-
+                Kind is a string value representing the REST resource this
+                object represents. Servers may infer this from the endpoint the
+                client submits requests to. Cannot be updated. In CamelCase.
+                More info:
+                https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: >-
+                SpectrumDiscoverKakfaSpec defines the desired state of
+                SpectrumDiscoverKakfa
+              type: object
+              required:
+                - kafka
+                - maintenance
+              properties:
+                kafka:
+                  type: object
+                  required:
+                    - storage_class
+                    - sasl
+                    - ssl
+                  properties:
+                    storage_class:
+                      type: string
+                    sasl:
+                      type: object
+                      required:
+                        - storage_in_gib
+                        - host
+                      properties:
+                        storage_in_gib:
+                          type: number
+                        host:
+                          type: string
+                    ssl:
+                      type: object
+                      required:
+                        - storage_in_gib
+                        - host
+                      properties:
+                        storage_in_gib:
+                          type: number
+                        host:
+                          type: string
+                maintenance:
+                  type: string
+            status:
+              description: >-
+                SpectrumDiscoverKakfaStatus defines the observed state of
+                SpectrumDiscoverKakfa
+              type: object
+              properties:
+                conditions:
+                  description: Orthogonal status conditions of the resource
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      ansibleResult:
+                        description: The ansible playbook result conditions
+                        type: object
+                        properties:
+                          changed:
+                            type: number
+                          failures:
+                            type: number
+                          ok:
+                            type: number
+                          skipped:
+                            type: number
+                      lastTransactionTime:
+                        description: The last time this condition was updated
+                        type: string
+                      lastTransitionTime:
+                        description: The last time the result changed
+                        type: string
+                      message:
+                        description: Plain text message describing the state
+                        type: string
+                      reason:
+                        description: Reason code describing the state
+                        type: string
+                      status:
+                        description: Boolean string indicating state
+                        type: string
+                        enum:
+                          - 'True'
+                          - 'False'
+                      type:
+                        description: The label for the condition type
+                        type: string
+          x-kubernetes-preserve-unknown-fields: true
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+# SPECTRUM DISCOVER CUSTOM RESOURCE DEFINITION
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: spectrumdiscovers.spectrum-discover.ibm.com
+  namespace: spectrum-discover
+spec:
+  group: spectrum-discover.ibm.com
+  names:
+    kind: SpectrumDiscover
+    listKind: SpectrumDiscoverList
+    plural: spectrumdiscovers
+    singular: spectrumdiscover
+  scope: Namespaced
+  subresources:
+    status: {}
+  versions:
+  - additionalPrinterColumns:
+      - name: Ready
+        type: string
+        description: SpectrumDiscover readiness status
+        jsonPath: '.status.conditions[?(@.reason=="Successful")].status'
+      - name: Summary
+        type: string
+        description: SpectrumDiscover readiness summary
+        jsonPath: '.status.conditions[?(@.type=="Running")].message'
+      - name: Error
+        type: string
+        description: SpectrumDiscover reconcile error
+        jsonPath: '.status.conditions[?(@.type=="Failure")].message'
+      - name: Age
+        type: date
+        description: Age of the resource
+        jsonPath: .metadata.creationTimestamp
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: >-
+          Creates IBM Spectrum Discover cluster that provides container-native
+          data and storage services for your container workloads.
+          Documentation for deploying IBM Spectrum Discover:
+          https://www.ibm.com/docs/en/spectrum-discover/2.0.5
+        type: object
+        properties:
+          apiVersion:
+            description: >-
+              APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the
+              latest internal value, and may reject unrecognized values. More
+              info:
+              https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: >-
+              Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the
+              client submits requests to. Cannot be updated. In CamelCase.
+              More info:
+              https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: >-
+              SpectrumDiscoverSpec defines the desired state of
+              SpectrumDiscover
+            type: object
+            required:
+              - license
+              - existing_claim_names
+              - dbwh
+              - kafka
+              - master
+              - ingress
+              - image
+            properties:
+              apiserver:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              auth:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              connmgr:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              consumer:
+                type: object
+                properties:
+                  ceph-le:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      group_id:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  cos-le:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      group_id:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  cos-scan:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      group_id:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  file-scan:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      group_id:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  protect-scan:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      group_id:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  scale-le:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      group_id:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  scale-scan:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      group_id:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+              contentsearchagent:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              dbwh:
+                type: object
+                required:
+                  - release_name
+                  - user
+                  - password
+                properties:
+                  password:
+                    type: string
+                  release_name:
+                    type: string
+                  user:
+                    type: string
+              dbwhrest:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              existing_claim_names:
+                type: object
+                required:
+                  - dbwh
+                  - spectrumdiscover
+                  - backup
+                properties:
+                  backup:
+                    type: string
+                  dbwh:
+                    type: string
+                  spectrumdiscover:
+                    type: string
+              image:
+                type: object
+                required:
+                  - repository
+                properties:
+                  repository:
+                    type: string
+              importtags:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              ingress:
+                type: object
+                required:
+                  - host
+                  - tls_secret_name
+                properties:
+                  host:
+                    type: string
+                  tls_secret_name:
+                    type: string
+              kafka:
+                type: object
+                required:
+                  - host
+                  - port
+                properties:
+                  host:
+                    type: string
+                  port:
+                    type: number
+                  sasl:
+                    type: object
+                    required:
+                      - host
+                    properties:
+                      host:
+                        type: string
+                  ssl:
+                    type: object
+                    required:
+                      - host
+                    properties:
+                      host:
+                        type: string
+              keystone:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              license:
+                type: object
+                required:
+                  - accept
+                properties:
+                  accept:
+                    description: >-
+                      Read and accept the terms on license agreement:
+                      https://ibm.biz/BdPFFX
+                    type: boolean
+              maintenance:
+                type: string
+              master:
+                type: object
+                required:
+                  - ip
+                properties:
+                  ip:
+                    type: string
+              node_select_key:
+                type: string
+                nullable: true
+              policyengine:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              producer:
+                type: object
+                properties:
+                  ceph_le:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  cos_le:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  cos_scan:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  file_scan:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  protect_scan:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  scale_le:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+                  scale_scan:
+                    type: object
+                    properties:
+                      batch_size:
+                        type: number
+                      debug:
+                        type: string
+                      instream_config_list:
+                        type: string
+                      outstream_config_list:
+                        type: string
+                      replicas:
+                        type: number
+              scaleafmdatamover:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              scaleilmdatamover:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              sdmonitor:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              tikaserver:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+              ui:
+                type: object
+                properties:
+                  backend:
+                    type: object
+                    properties:
+                      replicas:
+                        type: number
+                  frontend:
+                    type: object
+                    properties:
+                      replicas:
+                        type: number
+              wkcconnector:
+                type: object
+                properties:
+                  replicas:
+                    type: number
+          status:
+            description: >-
+              SpectrumDiscoverStatus defines the observed state of
+              SpectrumDiscover
+            type: object
+            properties:
+              conditions:
+                description: Orthogonal status conditions of the resource
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ansibleResult:
+                      description: The ansible playbook result conditions
+                      type: object
+                      properties:
+                        changed:
+                          type: number
+                        failures:
+                          type: number
+                        ok:
+                          type: number
+                        skipped:
+                          type: number
+                    lastTransactionTime:
+                      description: The last time this condition was updated
+                      type: string
+                    lastTransitionTime:
+                      description: The last time the result changed
+                      type: string
+                    message:
+                      description: Plain text message describing the state
+                      type: string
+                    reason:
+                      description: Reason code describing the state
+                      type: string
+                    status:
+                      description: Boolean string indicating state
+                      type: string
+                      enum:
+                        - 'True'
+                        - 'False'
+                    type:
+                      description: The label for the condition type
+                      type: string
+        x-kubernetes-preserve-unknown-fields: true
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+# SPECTRUM DISCOVER APPLICATION CUSTOM RESOURCE DEFINITION
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: spectrumdiscoverapplications.spectrum-discover.ibm.com
+spec:
+  group: spectrum-discover.ibm.com
+  names:
+    kind: SpectrumDiscoverApplication
+    listKind: SpectrumDiscoverApplicationList
+    plural: spectrumdiscoverapplications
+    singular: spectrumdiscoverapplication
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      type: object
+      x-kubernetes-preserve-unknown-fields: true
+  versions:
+  - additionalPrinterColumns:
+      - name: Ready
+        type: string
+        description: SpectrumDiscoverApplication readiness status
+        jsonPath: '.status.conditions[?(@.reason=="Successful")].status'
+      - name: Summary
+        type: string
+        description: SpectrumDiscoverApplication readiness summary
+        jsonPath: '.status.conditions[?(@.type=="Running")].message'
+      - name: Error
+        type: string
+        description: SpectrumDiscoverApplication reconcile error
+        jsonPath: '.status.conditions[?(@.type=="Failure")].message'
+      - name: Age
+        type: date
+        description: Age of the resource
+        jsonPath: .metadata.creationTimestamp
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: >-
+          Creates IBM Spectrum Discover cluster that provides container-native
+          data and storage services for your container workloads.
+          Documentation for deploying IBM Spectrum Discover:
+          https://www.ibm.com/docs/en/spectrum-discover/2.0.5
+        type: object
+        properties:
+          apiVersion:
+            description: >-
+              APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the
+              latest internal value, and may reject unrecognized values. More
+              info:
+              https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: >-
+              Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the
+              client submits requests to. Cannot be updated. In CamelCase.
+              More info:
+              https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: >-
+              SpectrumDiscoverApplicationSpec defines the desired state of
+              SpectrumDiscoverApplication
+            type: object
+            required:
+              - application_name
+              - replicas
+              - repo_name
+              - tag
+            properties:
+              application_name:
+                type: string
+              replicas:
+                type: number
+              log_level:
+                type: string
+              repo_name:
+                type: string
+              tag:
+                type: string
+          status:
+            description: >-
+              SpectrumDiscoverApplicationStatus defines the observed state of
+              SpectrumDiscoverApplication
+            type: object
+            properties:
+              conditions:
+                description: Orthogonal status conditions of the resource
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ansibleResult:
+                      description: The ansible playbook result conditions
+                      type: object
+                      properties:
+                        changed:
+                          type: number
+                        failures:
+                          type: number
+                        ok:
+                          type: number
+                        skipped:
+                          type: number
+                    lastTransactionTime:
+                      description: The last time this condition was updated
+                      type: string
+                    lastTransitionTime:
+                      description: The last time the result changed
+                      type: string
+                    message:
+                      description: Plain text message describing the state
+                      type: string
+                    reason:
+                      description: Reason code describing the state
+                      type: string
+                    status:
+                      description: Boolean string indicating state
+                      type: string
+                      enum:
+                        - 'True'
+                        - 'False'
+                    type:
+                      description: The label for the condition type
+                      type: string
+        x-kubernetes-preserve-unknown-fields: true
+    served: true
+    storage: true
+    subresources:
+      status: {}

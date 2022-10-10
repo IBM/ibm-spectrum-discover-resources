@@ -2,7 +2,7 @@ apiVersion: spectrum-discover.ibm.com/v1alpha1
 kind: SpectrumDiscoverKafka
 metadata:
   name: spectrumdiscoverkafka
-  namespace: spectrum-discover
+  namespace: ${project_name}
 spec:
   maintenance: 'off'
   kafka:

@@ -2,7 +2,7 @@ apiVersion: spectrum-discover.ibm.com/v1alpha1
 kind: SpectrumDiscover
 metadata:
   name: spectrumdiscover
-  namespace: spectrum-discover
+  namespace: ${project_name}
 spec:
   existing_claim_names:
     dbwh: "${db2wh_pvc_name}"
@@ -14,7 +14,7 @@ spec:
     user: bluadmin
     password: "${db2wh_password}"
   kafka:
-    host: 'spectrum-discover-ssl-kafka-bootstrap.spectrum-discover.svc.cluster.local'
+    host: '${project_name}-ssl-kafka-bootstrap.${project_name}.svc.cluster.local'
     port: 9093
     sasl:
       host: "${kafka_sasl_host}"

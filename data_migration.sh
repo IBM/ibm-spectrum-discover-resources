@@ -24,6 +24,7 @@ function restart_db()
     command=$1
     headConName=$2
     echo "Stopping all DB2 current connections..."
+    echo "${command} ${headConName} bash"
     eval "${command} ${headConName} bash" <<EOF
     su - db2inst1
     echo "Stopping DB2 application and DB connections..."
@@ -32,16 +33,16 @@ function restart_db()
     echo "Deactivating Data Base..."
     db2set -null DB2COMM
     db2 deactivate database BLUDB
-    sleep 5
+    sleep 10
     echo "Stopping Data Base..."
     db2stop force
-    sleep 10
+    sleep 15
     echo "Restoring connection to Data Base..."
     db2set DB2COMM=TCPIP,SSL
-    sleep 5
+    sleep 15
     echo "Starting Data Base service..."
     db2start
-    sleep 10
+    sleep 15
 EOF
 }
 
@@ -53,6 +54,22 @@ function check_environment()
     (($?)) && current_env=OVA || current_env=OCP
     [[ "${expected_env}" == "${current_env}" ]] && return 0 || /usr/bin/echo -e "ERROR: Not Spectrum Discover OCP environment.\nACTION: ${DM_ACTION} not permited on current environment.\nExiting..." && exit 1;
 
+}
+
+function clean_db()
+{
+    echo "CLEANING DATABASE..."
+    tables="ACES ACESLOADBASE ACESMAP ACESMAPLOADBASE ACOG ACOGLOADBASE ACOGMAP ACOGMAPLOADBASE AGENTS APPLICATIONCATALOG BUCKETS CONNECTIONS DATABASECHANGELOG DATABASECHANGELOGLOCK DUPLICATES METAOCEAN METAOCEAN_QUOTA POLICY POLICYHISTORY QUICKQUERY REGEX REPORTS SCANHISTORY TAGS"
+    headPodName=$(oc -n spectrum-discover get po --selector name=dashmpp-head-0|grep spectrum-discover|awk '{print $1}')
+    for i in $(echo $tables); do
+    	oc -n spectrum-discover exec -i ${headPodName} -- bash <<EOF
+	su - db2inst1
+   	echo "Cleaning table ${i}..."
+    	/mnt/blumeta0/home/db2inst1/sqllib/bin/db2 connect to bludb
+	/mnt/blumeta0/home/db2inst1/sqllib/bin/db2 "delete from bluadmin.${i}"
+	sleep 2
+EOF
+    done
 }
 
 function backup_db()
@@ -79,7 +96,7 @@ function restore_db()
 {
     echo "STARTING UP THE DATABASE RESTORE, THIS MIGHT TAKE A WHILE..."
     headPodName=$(oc -n spectrum-discover get po --selector name=dashmpp-head-0|grep spectrum-discover|awk '{print $1}')
-    oc cp ${DM_TAR_NAME}.tar.gz ${headPodName}:${DM_DATA_PATH}
+    oc cp ${DM_TAR_NAME}.tar.gz spectrum-discover/${headPodName}:${DM_DATA_PATH}
     (($?)) && /usr/bin/echo "ERROR: Error copying the tarball: ${DM_TAR_NAME}.tar.gz to pod's path. Please check the paths you have defined, make sure tarball exists on current location and make sure there's no space constraints." && exit 1;
     sleep 6
     oc -n spectrum-discover exec -i ${headPodName} -- bash <<EOF
@@ -114,8 +131,10 @@ elif [ ${DM_ACTION} == "RESTORE" ]
 then
     check_environment "OCP"
     headPodName=$(oc -n spectrum-discover get po --selector name=dashmpp-head-0|grep spectrum-discover|awk '{print $1}')
-    restart_db "oc exec -i" "${headPodName} --"
+    restart_db "oc -n spectrum-discover exec -i" "${headPodName} --"
+    clean_db
     restore_db
+    restart_db "oc -n spectrum-discover exec -i" "${headPodName} --"
     echo "DONE: Database restored. Data migration complete!"
 else
         echo "No valid ACTION specified"

@@ -12,6 +12,8 @@ if [[ -z "${PROJECT_NAME}" ]]; then
   echo -e "$(date +%Y-%m-%d\ %H:%M:%S) - \033[0;31mERROR\033[0m - Environment variable PROJECT_NAME is not defined. Try export PROJECT_NAME=\"<deployment_namespace>\""
 fi
 
+export SD_CONSOLE_ROUTE=$(oc -n ${PROJECT_NAME} get route/console -o jsonpath="{.spec.host}")
+
 function podlog {
 	selector=$1
 	oc -n ${PROJECT_NAME} logs --selector=${selector} --all-containers
@@ -59,16 +61,16 @@ alias sdmonlog='podlog role=sdmonitor'
 # Db2wh password
 alias pw='oc -n ${PROJECT_NAME} exec -c spectrum-discover $(oc -n ${PROJECT_NAME} get pods -l role=connmgr -o name) -- env | grep DB2WHREST_PASSWORD | cut -d "=" -f 2'
 # List policies
-alias getpols='tcurl https://${SD_CONSOLE_ROUTE:?environment variable must be set}/policyengine/v1/policies | jq'
+alias getpols='tcurl https://${SD_CONSOLE_ROUTE/policyengine/v1/policies | jq'
 # List data source connections
-alias getconns='tcurl https://${SD_CONSOLE_ROUTE:?environment variable must be set}/connmgr/v1/connections | jq'
+alias getconns='tcurl https://${SD_CONSOLE_ROUTE}/connmgr/v1/connections | jq'
 # Get/restart scrips for scale/file producers
 alias psplog='podlog role=scale-scan'
 alias repsp='delpod role=scale-scan'
 alias pfplog='podlog role=file-scan'
 alias repfp='delpod role=file-scan'
 # Get TLS certificates
-alias tls='gettoken; curl -k -H "Authorization: Bearer ${TOKEN}" https://${SD_CONSOLE_ROUTE:?environment variable must be set}/policyengine/v1/tlscert'
+alias tls='gettoken; curl -k -H "Authorization: Bearer ${TOKEN}" https://${SD_CONSOLE_ROUTE}/policyengine/v1/tlscert'
 
 # Facilitate display of producer/consumer logs
 function pclog {
@@ -87,7 +89,7 @@ function load_connection() {
 		echo "load_connection <connection.json>"
 	else
 		gettoken
-		curl -k -H "Authorization: Bearer ${TOKEN}" https://${SD_CONSOLE_ROUTE:?environment variable must be set}/connmgr/v1/connections -X POST -H "Content-type: application/json" -d@"$1"
+		curl -k -H "Authorization: Bearer ${TOKEN}" https://${SD_CONSOLE_ROUTE}/connmgr/v1/connections -X POST -H "Content-type: application/json" -d@"$1"
 	fi
 }
 
@@ -96,7 +98,7 @@ alias allpods='oc -n ${PROJECT_NAME} get pods'
 alias kp='oc -n ${PROJECT_NAME} get pods'
 
 # Fetch a valid authentication token
-alias gettoken='export TOKEN=$(curl -s -k -u ${SD_USER:-sdadmin}:${SD_PASSWORD:?environment variable must be set} https://${SD_CONSOLE_ROUTE:?environment variable must be set}/auth/v1/token -I | grep -i X-Auth-Token | cut -f 2 -d " ") | xargs'
+alias gettoken='export TOKEN=$(curl -s -k -u ${SD_USER:-sdadmin}:${SD_PASSWORD:?environment variable must be set} https://${SD_CONSOLE_ROUTE}/auth/v1/token -I | grep -i X-Auth-Token | cut -f 2 -d " ") | xargs'
 
 # Curl with authorization token
 alias tcurl='curl -s -k -H "Authorization: Bearer ${TOKEN}"'
@@ -107,9 +109,9 @@ alias cos-notify='oc -n ${PROJECT_NAME} exec -c spectrum-discover -it $(oc -n ${
 alias cos-replay='oc -n ${PROJECT_NAME} exec -c spectrum-discover -it $(oc -n ${PROJECT_NAME} get pods -l role=connmgr -o name) -- bash -c "python3 -m scanners.cloud_scanner.main_replay"'
 
 # Enable/disable the schedule of the duplicates/mrcapacity scan cronjobs
-alias enabledupjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE:?environment variable must be set}/db2whrest/v1/summary_tables/duplicates -X PUT -d'"'"'{"enabled": true}'"'"''
-alias disabledupjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE:?environment variable must be set}/db2whrest/v1/summary_tables/duplicates -X PUT -d'"'"'{"enabled": false}'"'"''
-alias enablemrcapjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE:?environment variable must be set}/db2whrest/v1/summary_tables/mrcapacity -X PUT -d'"'"'{"enabled": true}'"'"''
-alias disablemrcapjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE:?environment variable must be set}/db2whrest/v1/summary_tables/mrcapacity -X PUT -d'"'"'{"enabled": false}'"'"''
-alias rundupjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE:?environment variable must be set}/db2whrest/v1/summary_tables/duplicates/start -X PUT'
-alias runmrcapjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE:?environment variable must be set}/db2whrest/v1/summary_tables/mrcapacity/start -X PUT'
+alias enabledupjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE}/db2whrest/v1/summary_tables/duplicates -X PUT -d'"'"'{"enabled": true}'"'"''
+alias disabledupjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE}/db2whrest/v1/summary_tables/duplicates -X PUT -d'"'"'{"enabled": false}'"'"''
+alias enablemrcapjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE}/db2whrest/v1/summary_tables/mrcapacity -X PUT -d'"'"'{"enabled": true}'"'"''
+alias disablemrcapjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE}/db2whrest/v1/summary_tables/mrcapacity -X PUT -d'"'"'{"enabled": false}'"'"''
+alias rundupjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE}/db2whrest/v1/summary_tables/duplicates/start -X PUT'
+alias runmrcapjob='gettoken; tcurl_json https://${SD_CONSOLE_ROUTE}/db2whrest/v1/summary_tables/mrcapacity/start -X PUT'

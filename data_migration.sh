@@ -60,9 +60,9 @@ function clean_db()
 {
     echo "CLEANING DATABASE..."
     tables="ACES ACESLOADBASE ACESMAP ACESMAPLOADBASE ACOG ACOGLOADBASE ACOGMAP ACOGMAPLOADBASE AGENTS APPLICATIONCATALOG BUCKETS CONNECTIONS DATABASECHANGELOG DATABASECHANGELOGLOCK DUPLICATES METAOCEAN METAOCEAN_QUOTA POLICY POLICYHISTORY QUICKQUERY REGEX REPORTS SCANHISTORY TAGS"
-    headPodName=$(oc -n spectrum-discover get po --selector name=dashmpp-head-0|grep spectrum-discover|awk '{print $1}')
+    headPodName=$(oc -n ${PROJECT_NAME} get po --selector name=dashmpp-head-0 --no-headers | awk '{print $1}')
     for i in $(echo $tables); do
-    	oc -n spectrum-discover exec -i ${headPodName} -- bash <<EOF
+    	oc -n ${PROJECT_NAME} exec -i ${headPodName} -- bash <<EOF
 	su - db2inst1
    	echo "Cleaning table ${i}..."
     	/mnt/blumeta0/home/db2inst1/sqllib/bin/db2 connect to bludb
@@ -95,11 +95,11 @@ EOF
 function restore_db()
 {
     echo "STARTING UP THE DATABASE RESTORE, THIS MIGHT TAKE A WHILE..."
-    headPodName=$(oc -n spectrum-discover get po --selector name=dashmpp-head-0|grep spectrum-discover|awk '{print $1}')
-    oc cp ${DM_TAR_NAME}.tar.gz spectrum-discover/${headPodName}:${DM_DATA_PATH}
+    headPodName=$(oc -n ${PROJECT_NAME} get po --selector name=dashmpp-head-0 --no-headers | awk '{print $1}')
+    oc cp ${DM_TAR_NAME}.tar.gz ${PROJECT_NAME}/${headPodName}:${DM_DATA_PATH}
     (($?)) && /usr/bin/echo "ERROR: Error copying the tarball: ${DM_TAR_NAME}.tar.gz to pod's path. Please check the paths you have defined, make sure tarball exists on current location and make sure there's no space constraints." && exit 1;
     sleep 6
-    oc -n spectrum-discover exec -i ${headPodName} -- bash <<EOF
+    oc -n ${PROJECT_NAME} exec -i ${headPodName} -- bash <<EOF
     su db2inst1 -
     cd ${DM_DATA_PATH}
     echo "Extracting tarball data..."
@@ -115,7 +115,7 @@ EOF
 
 }
 
-env_vars="DM_ACTION DM_DATA_PATH DM_TAR_NAME"
+env_vars="DM_ACTION DM_DATA_PATH DM_TAR_NAME PROJECT_NAME"
 for var in $(echo $env_vars); do
         check_var ${var};
 done
@@ -130,11 +130,11 @@ then
 elif [ ${DM_ACTION} == "RESTORE" ]
 then
     check_environment "OCP"
-    headPodName=$(oc -n spectrum-discover get po --selector name=dashmpp-head-0|grep spectrum-discover|awk '{print $1}')
-    restart_db "oc -n spectrum-discover exec -i" "${headPodName} --"
+    headPodName=$(oc -n ${PROJECT_NAME} get po --selector name=dashmpp-head-0 --no-headers | awk '{print $1}')
+    restart_db "oc -n ${PROJECT_NAME} exec -i" "${headPodName} --"
     clean_db
     restore_db
-    restart_db "oc -n spectrum-discover exec -i" "${headPodName} --"
+    restart_db "oc -n ${PROJECT_NAME} exec -i" "${headPodName} --"
     echo "DONE: Database restored. Data migration complete!"
 else
         echo "No valid ACTION specified"

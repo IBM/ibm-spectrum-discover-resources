@@ -27,11 +27,11 @@ function close_ffdc {
 	info "Collected FFDC in ${FFDC_ID}.tar.xz" 
 }
 
-function fail_unless_bastion {
+function fail_unless_oc_cli {
 	oc_project_output=$(oc project ${PROJECT_NAME})
 	if [[ "$?" != "0" ]]	
 	then
-		error "Must be run on the Openshift bastion node with the Openshift command line."
+		error "Must be run on a host with the OpenShift command line."
 	fi	
 	info "${oc_project_output}"
 }
@@ -194,33 +194,33 @@ info "Namespace: ${namespace}"
 
 case $1 in 	
 	logs)
-		fail_unless_bastion
+		fail_unless_oc_cli
 		gather_db2_logs
 		gather_logs
 		;;
 	project)
-		fail_unless_bastion
+		fail_unless_oc_cli
 		gather_project_info
 		;;
 	services)
-		fail_unless_bastion
+		fail_unless_oc_cli
 		gather_remote_services
 		gather_service_status
 		;;
 	system)
-		fail_unless_bastion
+		fail_unless_oc_cli
 		gather_system_stats
 		;;
 	versions)
-		fail_unless_bastion
+		fail_unless_oc_cli
 		gather_versions
 		;;
 	configmap)
-	    fail_unless_bastion
+	    fail_unless_oc_cli
 		gather_config_map
 		;;
 	all)
-		fail_unless_bastion
+		fail_unless_oc_cli
 		gather_db2_logs
 		gather_logs
 		gather_project_info

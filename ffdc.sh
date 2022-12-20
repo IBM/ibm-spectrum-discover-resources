@@ -7,6 +7,10 @@
 # US Government Users Restricted Rights - Use, duplication or
 # disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
 
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
 LOG_DIRS="/var/log/backup-restore \
           /var/log/kafka \
           /var/log/secure"
@@ -24,7 +28,7 @@ function close_ffdc {
 }
 
 function fail_unless_bastion {
-	oc_project_output=$(oc project ${project_name})
+	oc_project_output=$(oc project ${PROJECT_NAME})
 	if [[ "$?" != "0" ]]	
 	then
 		error "Must be run on the Openshift bastion node with the Openshift command line."
@@ -49,7 +53,7 @@ function gather_versions {
 	oc get clusterversion >${VERSION_FFDC_DIR}/openshiftCluster.txt
 	# AMQ Streams version
 	AMQ_HEAD=$(oc -n ${namespace} get po | grep amq | awk '{print $1}')
-	oc exec -n ${project_name} -it ${AMQ_HEAD} -- ls lib > ${VERSION_FFDC_DIR}/amq.txt
+	oc exec -n ${PROJECT_NAME} -it ${AMQ_HEAD} -- ls lib > ${VERSION_FFDC_DIR}/amq.txt
 }
 
 function gather_logs {
@@ -91,10 +95,10 @@ function gather_db2_logs {
 	info "Gathering DB2WH logs..."
 	CMD_OUTPUT=${LOGS_FFDC_DIR}/db2diag.log
 	info "${CMD_OUTPUT}"
-	oc exec -n ${project_name} -it ${DB2WH_HEAD} -- su - db2inst1 -c 'db2diag' > ${CMD_OUTPUT}	
+	oc exec -n ${PROJECT_NAME} -it ${DB2WH_HEAD} -- su - db2inst1 -c 'db2diag' > ${CMD_OUTPUT}	
 	info "Gathering DB2 BLUDB Details..."
 	info "Creating DB configuration script..."
-    oc exec -n ${project_name} -it ${DB2WH_HEAD} -- sudo su - db2inst1 -c "cat <<EOF >/mnt/blumeta0/db2/scripts/db2_info.clp
+    oc exec -n ${PROJECT_NAME} -it ${DB2WH_HEAD} -- sudo su - db2inst1 -c "cat <<EOF >/mnt/blumeta0/db2/scripts/db2_info.clp
     -- CLP script to run DB2 CFG info
 	CONNECT TO BLUDB;
 	GET DB CFG;
@@ -102,38 +106,38 @@ function gather_db2_logs {
 	TERMINATE;
 	EOF"
 	info "Get DB config..."
-    oc exec -n ${project_name} -it ${DB2WH_HEAD} -- sudo su - db2inst1 -c "db2 -tvf /mnt/blumeta0/db2/scripts/db2_info.clp" >${LOGS_FFDC_DIR}/db2_cfg.txt	
+    oc exec -n ${PROJECT_NAME} -it ${DB2WH_HEAD} -- sudo su - db2inst1 -c "db2 -tvf /mnt/blumeta0/db2/scripts/db2_info.clp" >${LOGS_FFDC_DIR}/db2_cfg.txt	
 }
 
 function gather_project_info {
 	setup_ffdc
 	SD_FFDC_DIR=${FFDC_DIR}/project
 	mkdir -p ${SD_FFDC_DIR}
-	info "Gathering info for project ${project_name}..."
-	PROJECT_DIR=${SD_FFDC_DIR}/${project_name}
+	info "Gathering info for project ${PROJECT_NAME}..."
+	PROJECT_DIR=${SD_FFDC_DIR}/${PROJECT_NAME}
 	mkdir -p ${PROJECT_DIR}
-	PODS=$(oc get pods -n ${project_name} --no-headers |awk '{print $1}')
+	PODS=$(oc get pods -n ${PROJECT_NAME} --no-headers |awk '{print $1}')
 	for pod in ${PODS}
 	do
-		oc describe pod ${pod} -n ${project_name} > ${PROJECT_DIR}/${pod}.yaml
-		CONTAINERS=$(oc get pods ${pod} -n ${project_name} -ojsonpath={.spec.containers[*].name})
+		oc describe pod ${pod} -n ${PROJECT_NAME} > ${PROJECT_DIR}/${pod}.yaml
+		CONTAINERS=$(oc get pods ${pod} -n ${PROJECT_NAME} -ojsonpath={.spec.containers[*].name})
 		for container in ${CONTAINERS}
 		do
-			oc logs ${pod} -n ${project_name} ${container} &>${PROJECT_DIR}/${pod}_${container}.log
+			oc logs ${pod} -n ${PROJECT_NAME} ${container} &>${PROJECT_DIR}/${pod}_${container}.log
 		done
 	done
-	oc get events -ojson -n ${project_name} >${PROJECT_DIR}/events.json
+	oc get events -ojson -n ${PROJECT_NAME} >${PROJECT_DIR}/events.json
 }
 
 function gather_config_map {
 	setup_ffdc
 	CM_FFDC_DIR=${FFDC_DIR}/cm
 	mkdir -p ${CM_FFDC_DIR}
-	info "Gather Config maps for ${project_name}..."
-	CMS=$(oc get cm -n ${project_name} --no-headers | awk '{print $1}')
+	info "Gather Config maps for ${PROJECT_NAME}..."
+	CMS=$(oc get cm -n ${PROJECT_NAME} --no-headers | awk '{print $1}')
 	for cm in ${CMS}
 	do
-	  oc describe cm ${cm} -n ${project_name} > ${CM_FFDC_DIR}/${cm}.yaml
+	  oc describe cm ${cm} -n ${PROJECT_NAME} > ${CM_FFDC_DIR}/${cm}.yaml
 	done
 }
 
@@ -180,12 +184,12 @@ function info() {
     echo -e "$(date +%Y-%m-%d\ %H:%M:%S) - ${GREEN}INFO${NC} - $1"
 }
 
-if [[ -z "${project_name}" ]]; then
-  error "Environment variable project_name is not defined. Try export project_name=\"<deployment_namespace>\""
+if [[ -z "${PROJECT_NAME}" ]]; then
+  error "Environment variable PROJECT_NAME is not defined. Try export PROJECT_NAME=\"<deployment_namespace>\""
   exit 1
 fi
 
-namespace=${project_name}
+namespace=${PROJECT_NAME}
 info "Namespace: ${namespace}"
 
 case $1 in 	

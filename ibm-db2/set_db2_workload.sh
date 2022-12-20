@@ -14,12 +14,12 @@ function error() {
     echo -e "$(date +%Y-%m-%d\ %H:%M:%S) - ${RED}ERROR${NC} - $1"
 }
 
-if [[ -z "${project_name}" ]]; then
-    error "Environment variable project_name is not defined. Try export project_name=\"<deployment_namespace>\""
+if [[ -z "${PROJECT_NAME}" ]]; then
+    error "Environment variable PROJECT_NAME is not defined. Try export PROJECT_NAME=\"<deployment_namespace>\""
     exit 1
 fi
 
-namespace=${project_name}
+namespace=${PROJECT_NAME}
 info "Namespace: ${namespace}"
 release_statefulset=$(oc -n ${namespace} get statefulset --no-headers --selector type=engine | awk '{print $1}')
 head_node=$(oc -n ${namespace} get po --no-headers --selector name=dashmpp-head-0 | awk '{print $1}')

@@ -2,7 +2,7 @@ apiVersion: spectrum-discover.ibm.com/v1alpha1
 kind: SpectrumDiscoverApplication
 metadata:
   name: example-application
-  namespace: ${project_name}
+  namespace: ${PROJECT_NAME}
 spec:
   replicas: 1
   application_name: "example-application"

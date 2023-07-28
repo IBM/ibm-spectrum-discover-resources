@@ -98,7 +98,7 @@ alias allpods='oc -n ${PROJECT_NAME} get pods'
 alias kp='oc -n ${PROJECT_NAME} get pods'
 
 # Fetch a valid authentication token
-alias gettoken='export TOKEN=$(curl -s -k -u ${SD_USER:-sdadmin}:${SD_PASSWORD:?environment variable must be set} https://${SD_CONSOLE_ROUTE}/auth/v1/token -I | grep -i X-Auth-Token | cut -f 2 -d " ") | xargs'
+alias gettoken='export TOKEN=$(curl -s -k -u ${SD_USER:-sdadmin}:${SD_PASSWORD:?environment variable must be set} https://${SD_CONSOLE_ROUTE}/auth/v1/token -I | grep -i X-Auth-Token | cut -f 2 -d " ")'
 
 # Curl with authorization token
 alias tcurl='curl -s -k -H "Authorization: Bearer ${TOKEN}"'

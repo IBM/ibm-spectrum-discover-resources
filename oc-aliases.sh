@@ -61,7 +61,7 @@ alias sdmonlog='podlog role=sdmonitor'
 # Db2wh password
 alias pw='oc -n ${PROJECT_NAME} exec -c spectrum-discover $(oc -n ${PROJECT_NAME} get pods -l role=connmgr -o name) -- env | grep DB2WHREST_PASSWORD | cut -d "=" -f 2'
 # List policies
-alias getpols='tcurl https://${SD_CONSOLE_ROUTE/policyengine/v1/policies | jq'
+alias getpols='tcurl https://${SD_CONSOLE_ROUTE}/policyengine/v1/policies | jq'
 # List data source connections
 alias getconns='tcurl https://${SD_CONSOLE_ROUTE}/connmgr/v1/connections | jq'
 # Get/restart scrips for scale/file producers
@@ -98,7 +98,7 @@ alias allpods='oc -n ${PROJECT_NAME} get pods'
 alias kp='oc -n ${PROJECT_NAME} get pods'
 
 # Fetch a valid authentication token
-alias gettoken='export TOKEN=$(curl -s -k -u ${SD_USER:-sdadmin}:${SD_PASSWORD:?environment variable must be set} https://${SD_CONSOLE_ROUTE}/auth/v1/token -I | grep -i X-Auth-Token | cut -f 2 -d " ")'
+alias gettoken='export TOKEN=$(curl -s -k -u ${SD_USER:-sdadmin}:${SD_PASSWORD:?environment variable must be set} https://${SD_CONSOLE_ROUTE}/auth/v1/token -I -o /dev/null -w "%header{X-Auth-Token}")'
 
 # Curl with authorization token
 alias tcurl='curl -s -k -H "Authorization: Bearer ${TOKEN}"'
